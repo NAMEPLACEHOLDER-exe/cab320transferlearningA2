@@ -5,7 +5,7 @@ import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 from keras.applications import MobileNetV2
-from keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
+from keras.applications.mobilenet_v2 import preprocess_input
 
 '''
     AUXILARY FUNCS
@@ -94,7 +94,7 @@ def task_1():
         Flower dataset is downloaded from canvas by user?
         IMPORTANT: FLOWER DATA SET MUST BE IN THE SAME DIRECTORY AS THIS FILE AND CALLED 'small_flower_dataset'
     """
-    raise NotImplementedError()
+    pass
 
 def task_2():
     """
