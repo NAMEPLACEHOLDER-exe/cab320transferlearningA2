@@ -1,6 +1,6 @@
 import os, os.path
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
@@ -10,8 +10,28 @@ from keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
 '''
     AUXILARY FUNCS
 '''
+def compileAndTrainModel(model, customOptimizer, numEpochs, datasetTuple):
 
-def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validationAccuracy):
+    xTrain, yTrain, xValidation, yValidation = datasetTuple
+
+    model.compile(
+        loss='categorical_crossentropy',
+        optimizer=customOptimizer,
+        metrics=['accuracy']
+    )
+
+    history = model.fit(
+        x=xTrain,
+        y=yTrain,
+        epochs=numEpochs,
+        verbose=2,
+        validation_data=(xValidation, yValidation)
+    )
+
+    return history.history # .history needed cause history returned by .fit is actually obj with history property
+
+
+def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validationAccuracy, customTitles = [False, False]):
     plt.figure(figsize=(8, 8))
     plt.subplot(2, 1, 1)
     plt.plot(trainingAccuracy, label='Training Accuracy')
@@ -19,15 +39,17 @@ def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validati
     plt.legend(loc='lower right')
     plt.ylabel('Accuracy')
     plt.ylim([min(plt.ylim()),1])
-    plt.title('Training and Validation Accuracy')
+    if customTitles[0] != False: plt.title(customTitles[0])
+    else: plt.title('Training and Validation Accuracy')
 
     plt.subplot(2, 1, 2)
     plt.plot(trainingLoss, label='Training Loss')
     plt.plot(validationLoss, label='Validation Loss')
     plt.legend(loc='upper right')
     plt.ylabel('Cross Entropy')
-    plt.ylim([0,1.0])
-    plt.title('Training and Validation Loss')
+    plt.ylim([0,max(max(trainingLoss), max(validationLoss))])
+    if customTitles[1] != False: plt.title(customTitles[1])
+    else: plt.title('Training and Validation Loss')
     plt.xlabel('epoch')
     plt.show()
 
@@ -37,9 +59,8 @@ def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validati
 '''
 
 def task_1():
-    # download flowe dataset from canvas
-    # is this supposed to be coded?
-    # do I really have to do a http request and all that just to download the zip?
+    # download flower dataset from canvas
+    # maybe use tf.keras.utils.get_file()?
     raise NotImplementedError()
 
 def task_2():
@@ -132,42 +153,94 @@ def task_5():
     myModel = task_3()
     xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
 
-    myModel.compile(
-        loss='categorical_crossentropy',
-        optimizer=keras.optimizers.SGD(
+    basicSGD = keras.optimizers.SGD(
             learning_rate=0.01,
             momentum=0.0,
             nesterov=False
-        ),
-        metrics=['accuracy']
-    )
+        )
 
-    history = myModel.fit(
-        x=xTrain,
-        y=yTrain,
-        epochs=20,
-        batch_size=1000,
-        verbose=2,
-        validation_data=(xValidation, yValidation)
-    )
+    history = compileAndTrainModel(
+            model=myModel, 
+            customOptimizer=basicSGD, 
+            numEpochs=5,
+            datasetTuple=(xTrain, yTrain, xValidation, yValidation)
+        )
 
     return history
 
 def task_6():
-    history = task_5().history
-    plotLossAndAccuracy(history["accuracy"], history["val_accuracy"], history["loss"], history["val_loss"])
+    history = task_5()
+    plotLossAndAccuracy(history["loss"], history["accuracy"], history["val_loss"], history["val_accuracy"])
 
 def task_7():
+    print(f"running task 7 (testing different learning rates)...")
+
     myModel = task_3()
     xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
 
-    # essentially run task_5 3 times with dif learning rates, plot for each
+    learningRates = [0.0001, 0.001, 1]
+
+    for LR in learningRates:
+        print(f"compiling/training model with learning rate '{LR}'...")
+
+        optimizer = keras.optimizers.SGD(
+            learning_rate=LR,
+            momentum=0.0,
+            nesterov=False
+        )
+
+        history = compileAndTrainModel(
+            model=myModel, 
+            customOptimizer=optimizer, 
+            numEpochs=20,
+            datasetTuple=(xTrain, yTrain, xValidation, yValidation)
+        )
+
+        print("training done. plotting loss and accuracy...")
+
+        plotLossAndAccuracy(
+            trainingAccuracy= history["accuracy"], 
+            validationAccuracy= history["val_accuracy"], 
+            trainingLoss= history["loss"], 
+            validationLoss= history["val_loss"],
+            customTitles= [
+                f"Training and Validation Accuracy (LR = {LR})",
+                f"Training and Validation Loss (LR = {LR})"
+            ])
+    
+    print("task 7 complete.")
+
 
 def task_8():
     myModel = task_3()
     xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
 
-    # same as task_7, but using best found learning rate and 3 dif momentums
+    LR = 0.01 #CHANGE TO BEST FOUND LEARNING RATE IN TASK 7
+    momentums = [0.0001, 0.001, 1]
+
+    for mom in momentums:
+        optimizer = keras.optimizers.SGD(
+            learning_rate=LR,
+            momentum=mom,
+            nesterov=False
+        )
+
+        history = compileAndTrainModel(
+            model=myModel, 
+            customOptimizer=optimizer, 
+            numEpochs=5,
+            datasetTuple=(xTrain, yTrain, xValidation, yValidation)
+        )
+
+        plotLossAndAccuracy(
+            trainingAccuracy= history["accuracy"], 
+            validationAccuracy= history["val_accuracy"], 
+            trainingLoss= history["loss"], 
+            validationLoss= history["val_loss"],
+            customTitles= [
+                f"Training and Validation Accuracy (LR = {LR}, Momentum = {optimizer.momentum})",
+                f"Training and Validation Loss (LR = {LR}, Momentum = {optimizer.momentum})"
+            ])
 
 def task_9():
     # yeah don't know if this one is gettin done
@@ -182,5 +255,17 @@ def task_10():
     # add extra feature detection layers between base model output and our custom 5 classification output layer (see tasl 3 as to how to create layers)
     # retrain
 
+if __name__ == "__main__":
+    # task_1()
+    # task_2()
+    # task_3()
+    # task_4()
+    # task_5()
+    # task_6()
+    task_7()
+    # task_8()
+    # task_9()
+    # task_10()
+    pass
 
 
