@@ -11,15 +11,21 @@ from keras.applications.mobilenet_v2 import preprocess_input, decode_predictions
     AUXILARY FUNCS
 '''
 def compileAndTrainModel(model, customOptimizer, numEpochs, datasetTuple):
-
+    """
+        Compiles and trains the supplied model using the supplied optimizer for a specified number of epochs.
+        Uses the provided dataset (passed in as tuple(trainingData, trainingLabels, validationData, validationLabels)).
+    """
+    
     xTrain, yTrain, xValidation, yValidation = datasetTuple
 
+    #compilation
     model.compile(
         loss='categorical_crossentropy',
         optimizer=customOptimizer,
         metrics=['accuracy']
     )
 
+    #training
     history = model.fit(
         x=xTrain,
         y=yTrain,
@@ -32,7 +38,18 @@ def compileAndTrainModel(model, customOptimizer, numEpochs, datasetTuple):
 
 
 def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validationAccuracy, customTitles = [False, False]):
-    plt.figure(figsize=(8, 8))
+    """
+        Plots the provided training & validation loss/accuracy data in a single figure with 2 graphs.
+        Optional custom titles are accepted (formmated as ["custom title for accuracy graph", "custom title for loss graph"]).
+    """
+    #intialise custom x axis
+    customXTicks = list(range(len(trainingLoss)))
+    customXLabels = list(range(1, len(trainingLoss)+1))
+    
+    
+    plt.figure(figsize=(8, 8)) # plot container
+
+    # create accuracy graph
     plt.subplot(2, 1, 1)
     plt.plot(trainingAccuracy, label='Training Accuracy')
     plt.plot(validationAccuracy, label='Validation Accuracy')
@@ -41,7 +58,10 @@ def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validati
     plt.ylim([min(plt.ylim()),1])
     if customTitles[0] != False: plt.title(customTitles[0])
     else: plt.title('Training and Validation Accuracy')
+    plt.xlabel('epoch')
+    plt.xticks(customXTicks, customXLabels)
 
+    #create loss graph
     plt.subplot(2, 1, 2)
     plt.plot(trainingLoss, label='Training Loss')
     plt.plot(validationLoss, label='Validation Loss')
@@ -51,19 +71,35 @@ def plotLossAndAccuracy(trainingLoss, trainingAccuracy, validationLoss, validati
     if customTitles[1] != False: plt.title(customTitles[1])
     else: plt.title('Training and Validation Loss')
     plt.xlabel('epoch')
+    plt.xticks(customXTicks, customXLabels)
+
+    plt.subplots_adjust(hspace=0.4)
     plt.show()
 
 '''
     TASKS
-    (these wont run properly yet, but can't test them on my laptop. will test and fix ASAP tomorrow morning when i have my PC)
 '''
 
+def my_team():
+    """
+    Return the list of the team members of this assignment submission as a list
+    of triplet of the form (student_number, first_name, last_name)
+    """
+
+    return [ (10874917, 'Tali', 'Dugandzic'), (11292938, 'Sam', 'Price'), (11205342, 'Mohammed Mutahher', 'Mohammed Naseer') ]
+
 def task_1():
-    # download flower dataset from canvas
-    # maybe use tf.keras.utils.get_file()?
+    """
+        Unsure of what this task is supposed to be.
+        Flower dataset is downloaded from canvas by user?
+        IMPORTANT: FLOWER DATA SET MUST BE IN THE SAME DIRECTORY AS THIS FILE AND CALLED 'small_flower_dataset'
+    """
     raise NotImplementedError()
 
 def task_2():
+    """
+      Download and intialise pretrained MobileNetV2 network. (tf.keras.applications already imported)
+    """
     #download (excluding output layer) & freeze base model
     baseModel = MobileNetV2(weights='imagenet', include_top=False)
     baseModel.trainable = False
@@ -71,22 +107,26 @@ def task_2():
     return baseModel
 
 def task_3():
-    baseModel = task_2()
+    """
+        Append appropriate output layers for our flower problem to pretrained model.
+    """
+    baseModel = task_2() # grab MobileNetV2
 
-    #append new custom prediction (output) layer
+    #create new custom prediction (output) layers
     newLayers = baseModel.output
     newLayers = layers.GlobalAveragePooling2D()(newLayers)
     preditctionLayer = layers.Dense(5, activation="softmax", name="flower_predictions")(newLayers) 
 
+    #append new layers to pretrained model
     myModel = keras.Model(inputs=baseModel.input, outputs=preditctionLayer)
 
     return myModel
 
 def task_4():
     """
-        note: I really should change this to use tensorflow's image gen class,
-        i just already did all this and don't know if i'll have time to change it.
-        works tho :)
+        Preprocess all data appropriately for model input. Split into training, validation & test sets (70/15/15)
+
+        note: I really should change this to use tensorflow's image gen class, I just already did all this and can't bring myself to delete it.
     """
     #set constants
     DATASET_DIR = ".\small_flower_dataset"
@@ -134,7 +174,7 @@ def task_4():
     xTest = np.empty((TEST_SET_SIZE, 224, 224, 3))
     yTest = np.empty((TEST_SET_SIZE, len(ALL_FLOWER_TYPES)))
 
-    # THIS IS REALLY UGLY & ALL HARDCODED, I WILL FIX LATER!
+    # THIS IS REALLY UGLY & ALL HARDCODED, I APOLOGISE TO WHOEVER HAS TO LOOK AT THIS
     # get 70% (140 samples) of each flower type for training
     xTrain[0:140], xTrain[140:280], xTrain[280:420], xTrain[420:560], xTrain[560:700] = xData[0:140], xData[200:340], xData[400:540], xData[600:740], xData[800:940]
     yTrain[0:140], yTrain[140:280], yTrain[280:420], yTrain[420:560], yTrain[560:700] = yData[0:140], yData[200:340], yData[400:540], yData[600:740], yData[800:940]  
@@ -150,36 +190,48 @@ def task_4():
 
 
 def task_5():
-    myModel = task_3()
-    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
+    """
+        Compile and train the new model with base SGD optimizer (LR = 0.01, Momentum = 0)
+    """
+    myModel = task_3() #grab model from task 3
+    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4() #grab dataset from task 4
 
+    #create basic SGD optimizer
     basicSGD = keras.optimizers.SGD(
             learning_rate=0.01,
             momentum=0.0,
             nesterov=False
         )
 
+    #compile and train
     history = compileAndTrainModel(
             model=myModel, 
             customOptimizer=basicSGD, 
-            numEpochs=5,
+            numEpochs=20,
             datasetTuple=(xTrain, yTrain, xValidation, yValidation)
         )
 
-    return history
+    return history #return training info
 
 def task_6():
-    history = task_5()
+    """
+        Plot accuracy and loss (errors) for both training and validation from training performed in task 5.
+    """
+    history = task_5() #grab training info from task 5
     plotLossAndAccuracy(history["loss"], history["accuracy"], history["val_loss"], history["val_accuracy"])
 
 def task_7():
-    print(f"running task 7 (testing different learning rates)...")
+    """
+        Compile and train the model using 3 SGD optimizers of different orders of magnitude for learning rate.
+        Plot results after each training session. 
+    """
+    myModel = task_3() #grab model from task 3
+    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4() #grab dataset from task 4
 
-    myModel = task_3()
-    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
-
+    #choose 3 different orders of magnitude for learning rate to experiment with
     learningRates = [0.0001, 0.001, 1]
 
+    #compile, train and plot for each LR
     for LR in learningRates:
         print(f"compiling/training model with learning rate '{LR}'...")
 
@@ -208,16 +260,18 @@ def task_7():
                 f"Training and Validation Loss (LR = {LR})"
             ])
     
-    print("task 7 complete.")
-
-
 def task_8():
-    myModel = task_3()
-    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4()
+    """
+        Compile and train the model using 3 SGD optimizers of different momentums.
+        Plot results after each training session.
+    """
+    myModel = task_3() #grab model from task 3
+    xTrain, yTrain, xValidation, yValidation, xTest, yTest = task_4() #grab dataset from task 4
 
-    LR = 0.01 #CHANGE TO BEST FOUND LEARNING RATE IN TASK 7
-    momentums = [0.0001, 0.001, 1]
+    LR = 0.01 #best found learning rate
+    momentums = [0.4, 0.6, 0.9] #3 different momentums to experiment with
 
+    #compile, train and plot for each momentum
     for mom in momentums:
         optimizer = keras.optimizers.SGD(
             learning_rate=LR,
@@ -228,7 +282,7 @@ def task_8():
         history = compileAndTrainModel(
             model=myModel, 
             customOptimizer=optimizer, 
-            numEpochs=5,
+            numEpochs=20,
             datasetTuple=(xTrain, yTrain, xValidation, yValidation)
         )
 
@@ -238,31 +292,28 @@ def task_8():
             trainingLoss= history["loss"], 
             validationLoss= history["val_loss"],
             customTitles= [
-                f"Training and Validation Accuracy (LR = {LR}, Momentum = {optimizer.momentum})",
-                f"Training and Validation Loss (LR = {LR}, Momentum = {optimizer.momentum})"
+                f"Training and Validation Accuracy (LR = {LR}, Momentum = {mom})",
+                f"Training and Validation Loss (LR = {LR}, Momentum = {mom})"
             ])
 
 def task_9():
-    # yeah don't know if this one is gettin done
+    
     raise NotImplementedError()
 
 def task_10():
-    # yeah don't know if this one is gettin done
+    
     raise NotImplementedError()
 
 
-# HYPOTHETICALLY, all we have to do for task 9/10 is
-    # add extra feature detection layers between base model output and our custom 5 classification output layer (see tasl 3 as to how to create layers)
-    # retrain
-
 if __name__ == "__main__":
+    # my_team()
     # task_1()
     # task_2()
     # task_3()
     # task_4()
     # task_5()
     # task_6()
-    task_7()
+    # task_7()
     # task_8()
     # task_9()
     # task_10()
